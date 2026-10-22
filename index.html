@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="description" content="Ask a question. The record answers with a song.">
+<title>Hidden Track</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a listening station at night. One column: transport bar, an overhead turntable under a drifting lamp, a measuring strip, then the sleeve-back tracklist. Single dark look by choice. */
+:root{
+  --ink:#0b0b0c; --plinth:#141416; --line:#2a2a2e; --bone:#e8e4da; --smoke:#8f8b83; --brass:#c6a15b; --steel:#6f8193;
+  --display:"Big Shoulders Display","Oswald","Arial Narrow",Impact,sans-serif;
+  --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{height:100%;overflow-x:hidden}
+body{min-height:100%}
+body{background:var(--ink);color:var(--bone);font-family:var(--body);font-size:16px;line-height:1.5;overflow-x:clip;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ---------- atmosphere ---------- */
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.grain{position:fixed;inset:0;background-size:240px;z-index:1;pointer-events:none;opacity:.09;mix-blend-mode:overlay;animation:grain 1.4s steps(5) infinite;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes grain{20%{background-position:-30px 40px}40%{background-position:50px -20px}60%{background-position:-40px -30px}80%{background-position:20px 30px}}
+.vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.55) 100%)}
+.ripple{position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
+
+.app{position:relative;z-index:2;max-width:460px;margin:0 auto;padding-block:14px 44px;display:flex;flex-direction:column;gap:20px;min-height:100%}
+
+/* ---------- transport bar ---------- */
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.status{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--smoke);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.status i{width:6px;height:6px;border-radius:50%;background:var(--brass);box-shadow:0 0 8px var(--brass);opacity:.35;transition:opacity .3s}
+.status.live i{opacity:1}
+.mode{display:flex;padding:3px;gap:2px;border-radius:999px;border:1px solid var(--line);background:rgba(11,11,12,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.mode button{all:unset;cursor:pointer;font:500 12px/1 var(--body);letter-spacing:.01em;padding:8px 12px;border-radius:999px;color:var(--smoke);transition:color .2s,background .2s}
+.mode button[aria-pressed="true"]{background:var(--bone);color:var(--ink)}
+:focus-visible{outline:1.5px solid var(--brass);outline-offset:3px}
+
+/* ---------- turntable ---------- */
+.plinth{position:relative;width:100%;aspect-ratio:1.2;border-radius:20px;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  background:linear-gradient(165deg,#1e1e21 0%,#131315 50%,#0d0d0f 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),inset 0 -1px 0 rgba(0,0,0,.7),0 0 0 1px #050506,0 28px 60px rgba(0,0,0,.65),0 6px 14px rgba(0,0,0,.5);
+  transition:transform .25s ease}
+.plinth::before{content:"";position:absolute;inset:0;border-radius:inherit;opacity:.5;pointer-events:none;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),linear-gradient(125deg,rgba(255,255,255,.05),transparent 40%)}
+.plinth.held{transform:scale(.985)}
+#rec{position:absolute;left:3.333%;top:4%;width:76.667%;height:92%;border-radius:50%;box-shadow:0 12px 26px rgba(0,0,0,.75),0 2px 4px rgba(0,0,0,.6)}
+.plinth.held #rec,.plinth.held .recfb{filter:url(#water)}
+/* CSS record: always visible; hidden only after the canvas record is confirmed painted */
+.recfb{position:absolute;left:3.333%;top:4%;width:76.667%;height:92%;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,#4b4b50,#d6d6d9 10%,#5a5a60 22%,#2c2c31 38%,#bdbdc1 52%,#55555b 66%,#e3e3e5 82%,#4b4b50);
+  box-shadow:0 12px 26px rgba(0,0,0,.75),0 2px 4px rgba(0,0,0,.6)}
+.recfb i{position:absolute;inset:3.3%;border-radius:50%;display:grid;place-items:center;animation:recspin 1.8s linear infinite;
+  background:radial-gradient(circle,#050506 0 1.4%,transparent 1.5%),radial-gradient(circle,var(--lbl,#c6a15b) 0 33%,#0f0f11 33.2% 43%,transparent 43.2%),
+  repeating-radial-gradient(circle,#0b0b0d 0 1.5px,#17171a 1.5px 2.6px)}
+.recfb i b{font:800 clamp(14px,5vw,22px)/.9 var(--display);color:#121212;text-transform:uppercase;text-align:center;max-width:28%;white-space:pre-line}
+.recfb::after{content:"";position:absolute;inset:3.3%;border-radius:50%;background:conic-gradient(from 200deg,transparent 0 5%,rgba(255,250,240,.12) 9%,transparent 14% 50%,rgba(255,250,240,.09) 55%,transparent 62%)}
+@keyframes recspin{to{transform:rotate(360deg)}}
+.plinth.painted .recfb{display:none}
+/* Safari renders SVG filters on HTML poorly: use a CSS water wobble there instead */
+html.wk .plinth.held #rec,html.wk .plinth.held .recfb{filter:brightness(1.12) contrast(1.05);animation:wobble .5s ease-in-out infinite alternate}
+html.wk .plinth.held .recfb i{animation:none}
+@keyframes wobble{0%{transform:scale(.992) skew(.4deg,-.3deg)}100%{transform:scale(1.008) skew(-.4deg,.3deg)}}
+#err{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:#d9776a;word-break:break-word}
+#armsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.spd{transition:fill .3s}
+
+/* ---------- measuring strip ---------- */
+.scope{position:relative;height:66px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.scope canvas{position:absolute;inset:0;width:100%;height:100%}
+.readout{position:absolute;inset:auto 0 0;display:flex;justify-content:space-between;padding:0 2px 5px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;font-variant-numeric:tabular-nums;color:var(--smoke)}
+#hzQ{color:var(--brass)}#hzS{color:var(--steel)}
+#lock.on{color:var(--bone)}
+
+/* ---------- type ---------- */
+.view{display:flex;flex-direction:column;gap:20px}
+.view:not([hidden]){animation:rise .6s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{transform:translateY(10px);opacity:.25}}
+h1{margin:0;font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(64px,22vw,104px);line-height:.8;letter-spacing:-.005em;display:flex;flex-direction:column}
+h1 .out{color:transparent;-webkit-text-stroke:1.4px var(--bone);text-stroke:1.4px var(--bone)}
+h2{margin:0;font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:46px;line-height:.9;letter-spacing:.005em;text-wrap:balance}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--brass)}
+.head{display:flex;flex-direction:column;gap:8px}
+.sub{margin:0;color:var(--smoke);max-width:32ch;font-size:16px;line-height:1.55}
+
+/* ---------- buttons ---------- */
+.btn{appearance:none;border:0;cursor:pointer;width:100%;height:54px;border-radius:999px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+  font:500 12px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;background:var(--bone);color:var(--ink);transition:transform .1s,background .2s}
+.btn::after{content:"→";font-family:var(--body);font-size:18px;letter-spacing:0}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;color:var(--bone);border:1px solid var(--line)}
+.btn.ghost::after{content:none}
+.btn.ghost{justify-content:center}
+.btn:disabled{opacity:.35;cursor:default}
+.row{display:flex;gap:10px}
+
+/* ---------- tracklist ---------- */
+.tracklist{display:flex;flex-direction:column}
+.side{font-family:var(--mono);font-size:10px;letter-spacing:.24em;color:var(--smoke);padding:16px 0 8px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.side:first-child{padding-top:0}
+.trk{all:unset;cursor:pointer;display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:10px;padding:15px 2px;border-bottom:1px solid var(--line);transition:background .2s}
+.trk .no{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--brass)}
+.trk .nm{font-size:18px;font-weight:500;letter-spacing:-.005em;min-width:0;transition:transform .25s}
+.trk .ct{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--smoke);display:flex;align-items:center;gap:8px}
+.trk .ct b{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.trk:hover,.trk:focus-visible{background:rgba(232,228,218,.035)}
+.trk:hover .nm,.trk:focus-visible .nm{transform:translateX(4px)}
+
+/* ---------- ask ---------- */
+textarea{width:100%;resize:none;color:var(--bone);background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:6px 0 12px;font:500 22px/1.3 var(--body);min-height:72px}
+textarea:focus{outline:none;border-bottom-color:var(--brass)}
+textarea::placeholder{color:#55524d}
+.field{display:flex;flex-direction:column;gap:8px}
+body.typing .app{padding-bottom:75vh}
+.qs{display:none;flex-direction:column;max-height:min(calc(var(--vvh,100vh) - 190px),340px);min-height:120px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--line);border-radius:14px;background:rgba(18,18,20,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.field.open .qs{display:flex;animation:drop .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}}
+.qs-cap{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--smoke);padding:12px 14px 6px}
+.q{all:unset;cursor:pointer;display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:baseline;padding:12px 14px;border-top:1px solid var(--line);font-size:15px;line-height:1.35;color:#cfcac0;transition:color .2s,background .2s}
+.q:hover,.q:focus-visible{color:var(--bone);background:rgba(232,228,218,.04)}
+.q span{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--smoke);font-variant-numeric:tabular-nums}
+.q.funny span{color:var(--brass)}
+
+/* ---------- answer ---------- */
+.asked{margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--smoke)}
+.sleevewrap{position:relative;padding-right:16%}
+.peek{position:absolute;right:0;top:5%;width:86%;aspect-ratio:1;max-width:100%;border-radius:50%;box-shadow:0 14px 30px rgba(0,0,0,.6);transform:translateX(-36%);animation:slideout 1.1s .3s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes slideout{to{transform:translateX(0) rotate(32deg)}}
+.sleeve{position:relative;aspect-ratio:1;max-width:100%;overflow:hidden;border-radius:3px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;color:#121212;
+  background:var(--sbg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 2px 0 rgba(0,0,0,.4),0 30px 50px rgba(0,0,0,.7);animation:place .8s cubic-bezier(.2,.8,.2,1)}
+.sleeve::before{content:"";position:absolute;inset:0;opacity:.35;mix-blend-mode:multiply;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")}
+.sleeve::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.13) 44%,transparent 56%)}
+@keyframes place{from{transform:translateY(24px);opacity:0}}
+.sleeve>*{position:relative;z-index:1}
+.stop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.cat-no{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
+.sticker{width:68px;height:68px;flex:0 0 68px;border-radius:50%;display:grid;place-items:center;text-align:center;padding:6px;background:var(--bone);color:var(--ink);
+  font:800 15px/1 var(--display);text-transform:uppercase;letter-spacing:.02em;box-shadow:0 3px 8px rgba(0,0,0,.35);transform:rotate(-8deg)}
+.stitle{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(34px,10.5vw,52px);line-height:.86;text-wrap:balance}
+.sartist{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-top:10px}
+.reading{margin:0;font-size:19px;line-height:1.45;font-weight:500;padding-left:16px;border-left:1px solid var(--brass)}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{color:var(--bone);text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:9px 13px}
+.links a:hover{border-color:var(--brass);color:var(--brass)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.peek{transform:translateX(0) rotate(32deg)}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="water" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence id="wturb" type="fractalNoise" baseFrequency="0.006 0.009" numOctaves="1" seed="7"/><feDisplacementMap id="wdisp" in="SourceGraphic" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<canvas class="ripple" id="ripple" aria-hidden="true"></canvas>
+
+<div class="app">
+  <header class="top">
+    <div class="status" id="status"><i></i><span id="rpm">33.3</span>&nbsp;RPM</div>
+    <div class="mode" role="group" aria-label="Answer tone"><button type="button" id="mSoft" aria-pressed="false">Side A Vibe</button><button type="button" id="mPetty" aria-pressed="true">Dis Track</button></div>
+  </header>
+
+  <div class="plinth" id="deck" tabindex="0" role="button" aria-label="Press and hold the record">
+    <div class="recfb" aria-hidden="true"><i><b id="fblbl">Press
+Here</b></i></div>
+    <canvas id="rec"></canvas>
+    <svg id="armsvg" viewBox="0 0 1200 1000" aria-hidden="true">
+      <defs>
+        <linearGradient id="tube" gradientUnits="userSpaceOnUse" x1="-9" y1="0" x2="9" y2="0"><stop offset="0" stop-color="#55555a"/><stop offset=".42" stop-color="#f4f4f5"/><stop offset=".62" stop-color="#b4b4b9"/><stop offset="1" stop-color="#3e3e43"/></linearGradient>
+        <linearGradient id="cw" x1="0" x2="1"><stop offset="0" stop-color="#2a2a2e"/><stop offset=".35" stop-color="#9c9ca1"/><stop offset=".55" stop-color="#d8d8dc"/><stop offset=".8" stop-color="#5a5a5f"/><stop offset="1" stop-color="#232327"/></linearGradient>
+        <radialGradient id="cap" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fbfbfb"/><stop offset=".45" stop-color="#a6a6ab"/><stop offset="1" stop-color="#2c2c30"/></radialGradient>
+        <radialGradient id="base" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#2b2b2f"/><stop offset="1" stop-color="#121214"/></radialGradient>
+        <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+        <g id="armshape">
+          <rect x="-30" y="-178" width="60" height="96" rx="9" fill="url(#cw)"/>
+          <rect x="-30" y="-150" width="60" height="2" fill="rgba(0,0,0,.35)"/><rect x="-30" y="-128" width="60" height="2" fill="rgba(0,0,0,.35)"/><rect x="-30" y="-106" width="60" height="2" fill="rgba(0,0,0,.35)"/>
+          <rect x="-7" y="-86" width="14" height="86" fill="url(#tube)"/>
+          <path d="M0 0 L0 468 Q0 506 -22 540" fill="none" stroke="url(#tube)" stroke-width="13" stroke-linecap="round"/>
+          <g transform="translate(-22 540) rotate(30)">
+            <rect x="-21" y="-4" width="42" height="82" rx="5" fill="#26262a" stroke="#56565b" stroke-width="2"/>
+            <rect x="-14" y="16" width="28" height="48" rx="3" fill="#0e0e10"/>
+            <rect x="-14" y="16" width="28" height="6" rx="2" fill="#c6a15b"/>
+            <path d="M21 8 L40 2 L44 14" fill="none" stroke="#c4c4c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+          <circle r="34" fill="url(#cap)"/><circle r="12" fill="#1a1a1d"/><circle r="5" fill="#8a8a8f"/>
+        </g>
+      </defs>
+      <circle cx="1060" cy="190" r="80" fill="url(#base)" stroke="#2e2e33" stroke-width="2"/>
+      <circle cx="1060" cy="190" r="56" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1.5"/>
+      <rect x="1034" y="662" width="52" height="72" rx="11" fill="#1a1a1d" stroke="#2c2c31" stroke-width="2"/>
+      <rect x="1044" y="680" width="32" height="13" rx="6.5" fill="#0b0b0d"/>
+      <rect x="1005" y="868" width="66" height="38" rx="7" fill="#19191c" stroke="#2c2c31" stroke-width="2"/>
+      <rect x="1083" y="868" width="66" height="38" rx="7" fill="#19191c" stroke="#2c2c31" stroke-width="2"/>
+      <text class="spd" id="spd33" x="1038" y="893" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="19" fill="#c6a15b">33</text>
+      <text class="spd" id="spd45" x="1116" y="893" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="19" fill="#4a4a4f">45</text>
+      <text x="1077" y="952" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="5" fill="#34343a">NEEDLE DROP</text>
+      <g class="armshadow" id="armShadow" opacity=".6" filter="url(#soft)" transform="translate(14 20)"><g class="armg"><use href="#armshape" transform="translate(1060 190)" style="filter:brightness(0)"/></g></g>
+      <g class="armg"><use href="#armshape" transform="translate(1060 190)"/></g>
+    </svg>
+  </div>
+
+  <div class="scope">
+    <canvas id="scope" aria-hidden="true"></canvas>
+    <div class="readout"><span id="hzQ">— Hz</span><span id="lock">IDLE</span><span id="hzS"></span></div>
+  </div>
+  <div id="err">Scripts aren’t running in this browser.</div>
+
+  <section class="view" id="v-intro">
+    <h1><span>Needle</span><span class="out">Drop</span></h1>
+    <p class="sub">Every question hums at a pitch. The record has been listening the whole time.</p>
+    <button class="btn" id="go" type="button">Tune in</button>
+  </section>
+
+  <section class="view" id="v-cats" hidden>
+    <div class="head"><div class="eyebrow">Step 1</div><h2>Pick a side</h2></div>
+    <div class="tracklist" id="grid"></div>
+  </section>
+
+  <section class="view" id="v-ask" hidden>
+    <div class="head"><div class="eyebrow" id="askEye">Step 2</div><h2>Ask it</h2></div>
+    <div class="field" id="field">
+      <textarea id="qin" maxlength="140" placeholder="Tap to start your question" aria-controls="qs" aria-autocomplete="list"></textarea>
+      <div class="qs" id="qs" role="listbox" aria-label="Question openers"></div>
+    </div>
+    <div class="row"><button class="btn ghost" id="random" type="button">Ask for me</button><button class="btn" id="spin" type="button" disabled>Spin it</button></div>
+  </section>
+
+  <section class="view" id="v-ans" hidden>
+    <p class="asked" id="asked"></p>
+    <div class="sleevewrap" id="swrap"></div>
+    <p class="reading" id="reading"></p>
+    <div class="links" id="links"></div>
+    <div class="row"><button class="btn ghost" id="again" type="button">New question</button><button class="btn" id="other" type="button">Side B</button></div>
+  </section>
+</div>
+
+<script src="diag.js"></script>
+<script src="app.js"></script>
+
+</body></html>
