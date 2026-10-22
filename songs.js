@@ -72,7 +72,6 @@ const SONGS=[
 ["3 Libras", "A Perfect Circle", "N", "They aren't seeing what's actually in front of them. You can't make them.", "You're auditioning for someone who isn't watching. Leave the stage."],
 ["Rose", "A Perfect Circle", "W", "There's beauty here, and there are thorns. Learn which is which first.", "Pretty, with thorns. Wear gloves."],
 ["Thinking of You", "A Perfect Circle", "W", "It's on your mind more than you're on its. Find out before you invest more.", "You're thinking about it. Is it thinking about you? Check."],
-["Orestes", "A Perfect Circle", "L", "Whatever happened, revenge won't settle it. Let it go.", "Revenge is a lot of cardio. Rest instead."],
 ["9 to 5", "Dolly Parton", "N", "This is extracting more than it pays. Price that in.", "They're paying you in pizza Fridays. Ask for money."],
 ["Taking Care of Business", "Bachman-Turner Overdrive", "G", "Handle it yourself, today. It's simpler than it looks.", "Do the boring part. It's 80% of winning."],
 ["Lose Yourself", "Eminem", "G", "You get one clean shot at this. Take it.", "One shot. Don't spend it on a draft email."],
