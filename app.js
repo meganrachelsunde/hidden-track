@@ -301,9 +301,9 @@ function reveal(q,s,bd){last=s;buzz.lock();const [t,a,v]=s,h=hash(t),c=cat.color
   const ring=(x,y,r,al)=>`radial-gradient(circle at ${x}% ${y}%,transparent ${r}%,rgba(0,0,0,${al}) ${r}%,rgba(0,0,0,${al}) ${r+.35}%,transparent ${r+.35}%)`;
   const px=20+h%60,py=30+(h>>7)%50;
   const bg=[ring(px,py,22,.28),ring(px,py,30,.18),ring(px,py,38,.1),`radial-gradient(circle at ${px}% ${py}%,rgba(255,255,255,.18),transparent 45%)`,`linear-gradient(${150+h%40}deg,color-mix(in srgb,${c} 92%,#fff),color-mix(in srgb,${c} 62%,#000))`].join(",");
-  $("swrap").innerHTML=`<canvas class="peek" width="440" height="440"></canvas><div class="sleeve" style="--sbg:${bg}"><div class="stop"><span class="cat-no">ND-001 · ${S}${tr} · ${cat.name}</span><span class="sticker"></span></div><div><div class="stitle"></div><div class="sartist"></div></div></div>`;
+  $("swrap").innerHTML=`<canvas class="peek" width="440" height="440"></canvas><div class="sleeve" style="--sbg:${bg}"><div class="stop"><span class="cat-no">ND-001 · ${S}${tr} · ${cat.name}</span></div><div><div class="stitle"></div><div class="sartist"></div></div></div>`;
   const pk=$("swrap").querySelector(".peek"),pc=pk.getContext("2d");if(REC.disc){pc.drawImage(REC.base,0,0,440,440);pc.drawImage(REC.disc,0,0,440,440);pc.drawImage(REC.sheen,0,0,440,440)}
-  $("swrap").querySelector(".sticker").textContent=VERD[v];
+  
   $("swrap").querySelector(".stitle").textContent=t;$("swrap").querySelector(".sartist").textContent=a;
   $("asked").textContent="“"+q+"”";$("reading").textContent=s[petty?4:3];
   const term=encodeURIComponent(t+" "+a);
