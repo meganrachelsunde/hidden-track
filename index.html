@@ -105,6 +105,10 @@ h1 .out{color:transparent;-webkit-text-stroke:1.4px var(--bone);text-stroke:1.4p
 h2{margin:0;font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:46px;line-height:.9;letter-spacing:.005em;text-wrap:balance}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--brass)}
 .head{display:flex;flex-direction:column;gap:8px}
+.hint{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-4px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone);text-align:center}
+.hint b{color:var(--brass);font-weight:500;animation:nudge 1.6s ease-in-out infinite}
+.hint small{display:block;color:var(--smoke);font-size:10px;letter-spacing:.12em;margin-top:4px}
+@keyframes nudge{50%{transform:translateY(-3px)}}
 .sub{margin:0;color:var(--smoke);max-width:32ch;font-size:16px;line-height:1.55}
 
 /* ---------- buttons ---------- */
@@ -188,7 +192,7 @@ body.typing .app{padding-bottom:75vh}
 
   <div class="plinth" id="deck" tabindex="0" role="button" aria-label="Press and hold the record">
     <div class="recfb" aria-hidden="true"><i><b id="fblbl">Press
-Here</b></i></div>
+Me</b></i></div>
     <canvas id="rec"></canvas>
     <svg id="armsvg" viewBox="0 0 1200 1000" aria-hidden="true">
       <defs>
@@ -224,6 +228,8 @@ Here</b></i></div>
       <g class="armg"><use href="#armshape" transform="translate(1060 190)"/></g>
     </svg>
   </div>
+
+  <div class="hint" id="hint" aria-live="polite"><b>↑</b><div><span>Press the record to start</span><small>Tap it, or hold it for the full effect</small></div></div>
 
   <div class="scope">
     <canvas id="scope" aria-hidden="true"></canvas>

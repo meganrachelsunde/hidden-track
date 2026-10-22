@@ -93,11 +93,19 @@ const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 let cat=null,ck=null,petty=true,last=null,actx=null;
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function show(v){["intro","cats","ask","ans"].forEach(x=>$("v-"+x).hidden=x!==v);const el=$("v-"+v);setTimeout(()=>{const top=el.getBoundingClientRect().top;if(top>innerHeight*.7||top<0)scrollTo({top:Math.max(0,top+scrollY-innerHeight*.35),behavior:"smooth"})},16)}
+let show=function(v){["intro","cats","ask","ans"].forEach(x=>$("v-"+x).hidden=x!==v);const el=$("v-"+v);setTimeout(()=>{const top=el.getBoundingClientRect().top;if(top>innerHeight*.7||top<0)scrollTo({top:Math.max(0,top+scrollY-innerHeight*.35),behavior:"smooth"})},16)}
+/* one plain instruction under the turntable, always saying what to do next */
+function hint(){const h=$("hint");if(!h)return;let t;
+  if(!$("v-intro").hidden)t="Press the record to start";
+  else if(!$("v-cats").hidden)t="Pick a category below";
+  else if(!$("v-ask").hidden)t=$("qin").value.trim()?"Now press the record":"Type below, then press the record";
+  else t="Press the record to ask another";
+  h.querySelector("span").textContent=t}
+const _show=show;show=v=>{_show(v);hint()};
 
 /* ================= record rendering ================= */
 const REC={el:$("rec"),ctx:null,S:0,base:null,disc:null,sheen:null,ang:0,rpm:33.333,target:33.333,
-  label:{lines:["PRESS","HERE"],color:"#c6a15b",side:"A"}};
+  label:{lines:["PRESS","ME"],color:"#c6a15b",side:"A",rim:"NEEDLE DROP RECORDS"}};
 const mk=S=>{const c=document.createElement("canvas");c.width=c.height=S;return c};
 function conic(x,a,cx,cy,stops){if(!x.createConicGradient)return null;const g=x.createConicGradient(a,cx,cy);for(const s of stops)g.addColorStop(s[0],s[1]);return g}
 let noisePat=null;
@@ -127,7 +135,7 @@ function buildDisc(){const S=REC.S,u=S/920,c=S/2,b=mk(S),x=b.getContext("2d"),L=
   const rg=x.createRadialGradient(c-45*u,c-55*u,8*u,c,c,150*u);rg.addColorStop(0,"rgba(255,255,255,.12)");rg.addColorStop(1,"rgba(0,0,0,.2)");x.fillStyle=rg;x.fillRect(0,0,S,S);
   x.globalAlpha=.09;x.fillStyle=noise(x);x.fillRect(0,0,S,S);x.globalAlpha=1;x.restore();
   x.lineWidth=.9*u;x.strokeStyle="rgba(12,12,12,.4)";x.beginPath();x.arc(c,c,137*u,0,7);x.stroke();
-  arcText(x,"NEEDLE DROP RECORDS",116*u,c,-Math.PI/2,8.5*u,"'IBM Plex Mono',monospace","rgba(14,14,14,.82)");
+  arcText(x,L.rim||"NEEDLE DROP RECORDS",116*u,c,-Math.PI/2,8.5*u,"'IBM Plex Mono',monospace","rgba(14,14,14,.82)");
   arcText(x,"SIDE "+L.side+"  ·  33⅓ RPM  ·  STEREO",116*u,c,Math.PI/2,7.5*u,"'IBM Plex Mono',monospace","rgba(14,14,14,.7)",true);
   x.fillStyle="#121212";x.textAlign="center";x.textBaseline="middle";
   let fs=36*u;const fam="'Big Shoulders Display','Arial Narrow',sans-serif";
@@ -145,7 +153,7 @@ function buildSheen(){const S=REC.S,u=S/920,c=S/2,b=mk(S),x=b.getContext("2d");R
   const lg=x.createRadialGradient(c-50*u,c-60*u,0,c-50*u,c-60*u,120*u);lg.addColorStop(0,"rgba(255,255,255,.10)");lg.addColorStop(1,"rgba(255,255,255,0)");x.fillStyle=lg;x.beginPath();x.arc(c,c,146*u,0,7);x.fill();
   const sg=x.createRadialGradient(c-2*u,c-2.5*u,0,c,c,6*u);sg.addColorStop(0,"#f5f5f5");sg.addColorStop(.55,"#9d9da2");sg.addColorStop(1,"#38383c");x.fillStyle=sg;x.beginPath();x.arc(c,c,5.5*u,0,7);x.fill()}
 function sizeRec(){const d=Math.min(devicePixelRatio||1,2),S=Math.round(REC.el.clientWidth*d);if(!S||S===REC.S)return;REC.S=S;REC.el.width=REC.el.height=S;REC.ctx=REC.el.getContext("2d");buildBase();buildDisc();buildSheen();paintRec()}
-function setLabel(lines,color,side){REC.label={lines,color,side:side||"A"};try{$("fblbl").textContent=lines.join("\n");document.querySelector(".recfb").style.setProperty("--lbl",color)}catch(e){}if(REC.S){buildDisc();paintRec()}}
+function setLabel(lines,color,side,rim){REC.label={lines,color,side:side||"A",rim:rim||"NEEDLE DROP RECORDS"};try{$("fblbl").textContent=lines.join("\n");document.querySelector(".recfb").style.setProperty("--lbl",color)}catch(e){}if(REC.S){buildDisc();paintRec()}}
 function paintRec(){const x=REC.ctx,S=REC.S;if(!x)return;x.clearRect(0,0,S,S);x.drawImage(REC.base,0,0);x.save();x.translate(S/2,S/2);x.rotate(REC.ang);x.drawImage(REC.disc,-S/2,-S/2);x.restore();x.drawImage(REC.sheen,0,0);
   if(!REC.ok){try{const px=x.getImageData(Math.round(S/2+S*.1),Math.round(S/2),1,1).data;if(px[3]>200){REC.ok=true;$("deck").classList.add("painted")}}catch(e){}}}
 let shownRpm="";
@@ -200,7 +208,7 @@ function syncDrop(){const t=$("qin"),v=t.value.trim().toLowerCase(),focused=docu
   const startedStem=stems().some(q=>v.startsWith(q.toLowerCase()));const n=(focused||!v)&&!startedStem?renderQs():0;$("field").classList.toggle("open",n>0)}
 function autoQ(){const st=stems();return st[Math.floor(Math.random()*st.length)]+" "+SUBJ[ck]+"?"}
 function pick(k){ck=k;cat=CATS[k];const i=ORDER.indexOf(k),S=sideOf(k);$("askEye").textContent=trackNo(k)+" · "+cat.name;
-  setLabel(labelFor(k),cat.color,S);setQ("");show("ask");syncDrop()}
+  setLabel(["PRESS","ME"],cat.color,S,cat.name.toUpperCase());setQ("");show("ask");syncDrop()}
 function setQ(v){$("qin").value=v;$("qin").dispatchEvent(new Event("input"))}
 $("qs").addEventListener("pointerdown",e=>{if(e.target.closest(".q"))e.preventDefault()});
 $("qs").onclick=e=>{const b=e.target.closest(".q");if(!b)return;const v=b.dataset.s+" ";setQ(v);const t=$("qin");t.focus();try{t.setSelectionRange(v.length,v.length)}catch(_){}syncDrop()};
@@ -210,7 +218,7 @@ function lift(){const top=$("field").getBoundingClientRect().top+scrollY-14;scro
 $("qin").addEventListener("focus",()=>{document.body.classList.add("typing");syncDrop();setTimeout(lift,60);setTimeout(lift,380)});
 $("qin").addEventListener("blur",()=>setTimeout(()=>{if(document.activeElement!==$("qin"))document.body.classList.remove("typing");syncDrop()},120));
 $("qin").addEventListener("input",syncDrop);
-$("qin").oninput=()=>$("spin").disabled=!$("qin").value.trim();
+$("qin").oninput=()=>{$("spin").disabled=!$("qin").value.trim();hint()};
 $("random").onclick=()=>{setQ(autoQ());spin()};
 $("spin").onclick=spin;
 $("qin").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();if($("qin").value.trim())spin()}};
