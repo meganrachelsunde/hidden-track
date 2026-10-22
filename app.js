@@ -280,7 +280,7 @@ function spin(){
   setTimeout(()=>{clearInterval(sweep);scope.f2=fs;scope.mode="lock";readout(fmt(fq),"LOCKED · Δ "+Math.round(bd)+"¢",fmt(fs),true);
     setSpeed(33.333);reveal(q,best,bd);$("random").disabled=false},2400);
 }
-function reveal(q,s,bd){last=s;const [t,a,v]=s,h=hash(t),c=cat.color,S=sideOf(ck),tr=cat.songs.indexOf(s)+1;
+function reveal(q,s,bd){last=s;buzz.lock();const [t,a,v]=s,h=hash(t),c=cat.color,S=sideOf(ck),tr=cat.songs.indexOf(s)+1;
   const ring=(x,y,r,al)=>`radial-gradient(circle at ${x}% ${y}%,transparent ${r}%,rgba(0,0,0,${al}) ${r}%,rgba(0,0,0,${al}) ${r+.35}%,transparent ${r+.35}%)`;
   const px=20+h%60,py=30+(h>>7)%50;
   const bg=[ring(px,py,22,.28),ring(px,py,30,.18),ring(px,py,38,.1),`radial-gradient(circle at ${px}% ${py}%,rgba(255,255,255,.18),transparent 45%)`,`linear-gradient(${150+h%40}deg,color-mix(in srgb,${c} 92%,#fff),color-mix(in srgb,${c} 62%,#000))`].join(",");
@@ -298,6 +298,20 @@ $("go").onclick=()=>{dropNeedle();show("cats")};
 $("again").onclick=()=>{liftArm();setQ("");show("ask")};
 $("other").onclick=()=>{liftArm();show("cats")};
 
+/* ================= haptics =================
+   Android: the Vibration API drives the motor directly (buzz that builds while you hold).
+   iPhone: Safari has no Vibration API; toggling a hidden iOS switch control (iOS 18+) fires the
+   system haptic tick. It only fires inside a real touch, so iPhone gets crisp taps on press and release. */
+const buzz=(()=>{const canV=typeof navigator.vibrate==="function";
+  function iosTick(){try{const l=document.createElement("label"),i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");
+    l.appendChild(i);l.style.display="none";l.setAttribute("aria-hidden","true");document.head.appendChild(l);l.click();l.remove()}catch(e){}}
+  const v=pat=>{try{navigator.vibrate(pat)}catch(e){}};
+  return{press(){canV?v(14):iosTick()},
+    ring(p){if(canV)v(Math.round(6+p*22))},
+    full(){canV?v([30,50,30]):iosTick()},
+    release(){canV?v(22):iosTick()},
+    lock(){canV?v([12,70,40]):iosTick()}}})();
+
 /* ================= press and hold: water ================= */
 if(/AppleWebKit/.test(navigator.userAgent)&&!/Chrome|Chromium|Android/.test(navigator.userAgent))document.documentElement.classList.add("wk");
 const HOLD=1400,deck=$("deck"),wdisp=$("wdisp"),wturb=$("wturb");
@@ -313,15 +327,15 @@ function drawRipples(now){rx.clearRect(0,0,innerWidth,innerHeight);
     ringPath(g,2.5,3,"0,0,0",g.a*.45);ringPath(g,0,0,"240,234,220",g.a);ringPath(g,0,-g.r*.18,"198,161,91",g.a*.4)}
   rings=rings.filter(g=>g.a>.02);
   if(hold){const p=Math.min(1,(now-hold.t0)/HOLD);hold.p=p;
-    if(now-hold.last>Math.max(110,320-p*210)){hold.last=now;addRing(hold.x,hold.y,p)}
+    if(now-hold.last>Math.max(110,320-p*210)){hold.last=now;addRing(hold.x,hold.y,p);buzz.ring(p)}
     if(!document.documentElement.classList.contains("wk"))wdisp.setAttribute("scale",(p*15).toFixed(1));
     wturb.setAttribute("baseFrequency",(.006+Math.sin(now/380)*.002).toFixed(4)+" "+(.009+Math.cos(now/460)*.0025).toFixed(4));
     if(scope.mode==="idle"||scope.mode==="hold"){scope.mode="hold";scope.amp=p;scope.f1=110*Math.pow(2,p*2.6);readout(fmt(scope.f1),p>=1?"RELEASE":"HOLDING","",p>=1)}
-    if(p>=1&&!hold.buzz){hold.buzz=1;try{navigator.vibrate&&navigator.vibrate(18)}catch(e){}}}}
+    if(p>=1&&!hold.buzz){hold.buzz=1;buzz.full()}}}
 const busy=()=>$("random").disabled;
-function startHold(x,y){if(busy()||hold)return;hold={x,y,t0:performance.now(),last:0,p:0};heldFrom=REC.target;REC.target=0;armFrom=ARM.target;setArm(19,true);deck.classList.add("held");addRing(x,y,0);hum.start()}
+function startHold(x,y){if(busy()||hold)return;hold={x,y,t0:performance.now(),last:0,p:0};heldFrom=REC.target;REC.target=0;armFrom=ARM.target;setArm(19,true);deck.classList.add("held");buzz.press();addRing(x,y,0);hum.start()}
 let lastGo=0;
-function endHold(e){if(!hold)return;const p=hold.p,x=hold.x,y=hold.y,cancelled=e&&e.type==="pointercancel";hold=null;hum.stop();REC.target=heldFrom;
+function endHold(e){if(!hold)return;if(!(e&&e.type==="pointercancel"))buzz.release();const p=hold.p,x=hold.x,y=hold.y,cancelled=e&&e.type==="pointercancel";hold=null;hum.stop();REC.target=heldFrom;
   deck.classList.remove("held");wdisp.setAttribute("scale","0");
   for(let i=0;i<3;i++)setTimeout(()=>addRing(x,y,.5+i*.25),i*110);
   if(scope.mode==="hold"){scope.mode="idle";scope.amp=.15;readout("— Hz","IDLE","",false)}
