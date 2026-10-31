@@ -2,12 +2,14 @@ const ORDER=["friends","love","career","mystery","future","myself","style"];
 /* One shared catalog. Categories only set the questions; any song can answer any of them.
    Even pitch slices: each song owns an equal share of the 110–1320 Hz scale,
    in an order shuffled by its title, so no song hogs the answers. */
-SONGS.slice().sort((a,b)=>hash(a[0]+a[1])-hash(b[0]+b[1])).forEach((sg,i,L)=>{sg.hz=110*Math.pow(2,((i+.5)/L.length)*3.6)});
+[SONGS,DIS].forEach(P=>P.slice().sort((a,b)=>hash(a[0]+a[1])-hash(b[0]+b[1])).forEach((sg,i,L)=>{sg.hz=110*Math.pow(2,((i+.5)/L.length)*3.6)}));
+/* Dis Track runs the opposite trajectory of Side A: same question, its own pool, reversed verdict. */
+const OPP={Y:"N",N:"Y",G:"L",L:"G",W:"G"};
 const VERD={Y:"Yes",N:"No",W:"Not yet",G:"Go",L:"Let it go"};
 
 const $=id=>document.getElementById(id);
 const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
-let cat=null,ck=null,petty=true,last=null,actx=null;
+let cat=null,ck=null,petty=true,last=null,lastQ="",pair=null,actx=null;
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 let show=function(v){["intro","cats","ask","ans"].forEach(x=>$("v-"+x).hidden=x!==v);const el=$("v-"+v);setTimeout(()=>{const top=el.getBoundingClientRect().top;if(top>innerHeight*.7||top<0)scrollTo({top:Math.max(0,top+scrollY-innerHeight*.35),behavior:"smooth"})},16)}
@@ -107,7 +109,7 @@ function drawSky(t){const w=sky.width,h=sky.height,M=Math.max(w,h);sx.clearRect(
 
 /* ================= tone + questions ================= */
 function setMode(p){petty=p;$("mPetty").setAttribute("aria-pressed",p);$("mSoft").setAttribute("aria-pressed",!p);
-  if(ck)syncDrop();if(last&&!$("v-ans").hidden)$("reading").textContent=last[petty?4:3]}
+  if(ck)syncDrop();if(pair&&!$("v-ans").hidden)reveal(lastQ,petty?pair.dis:pair.a)}
 $("mPetty").onclick=()=>setMode(true);$("mSoft").onclick=()=>setMode(false);
 
 $("grid").innerHTML=["A","B"].map(S=>`<div class="side"><span>SIDE ${S}</span><span>${S==="A"?"33⅓":"45"}</span></div>`+ORDER.filter(k=>sideOf(k)===S).map(k=>{const no=trackNo(k);
@@ -151,15 +153,17 @@ const sHz=s=>s.hz||hzOf(s[0]+s[1]);
 /* Short memory: the same question on the same day keeps its song; otherwise the record
    won't repeat any of your recent answers. Stored only in this browser. */
 const MEM={get(k,d){try{return JSON.parse(localStorage.getItem("ht."+k))||d}catch(e){return d}},set(k,v){try{localStorage.setItem("ht."+k,JSON.stringify(v))}catch(e){}}};
-function choose(q,fq){const key=norm(q)+"|"+ck+"|"+day,asked=MEM.get("asked",{}),songs=SONGS;
+function choose(q,fq,songs=SONGS,ns=""){const key=ns+norm(q)+"|"+ck+"|"+day,asked=MEM.get("asked",{});
   const ranked=songs.map(s=>[cents(fq,sHz(s)),s]).sort((a,b)=>a[0]-b[0]);
   const prev=asked[key]&&songs.find(s=>s[0]===asked[key]);
   if(prev)return[prev,ranked.find(r=>r[1]===prev)[0]];
-  const recent=MEM.get("recent",[]),keep=Math.min(40,songs.length-1);
+  const recent=MEM.get(ns+"recent",[]),keep=Math.min(40,songs.length-1);
   const pickR=ranked.find(r=>!recent.includes(r[1][0]))||ranked[0];
-  MEM.set("recent",[pickR[1][0],...recent.filter(t=>t!==pickR[1][0])].slice(0,keep));
+  MEM.set(ns+"recent",[pickR[1][0],...recent.filter(t=>t!==pickR[1][0])].slice(0,keep));
   asked[key]=pickR[1][0];const ks=Object.keys(asked);if(ks.length>200)delete asked[ks[0]];MEM.set("asked",asked);
   return[pickR[1],pickR[0]]}
+/* The Dis Track: a song outside Side A, from the slice of DIS whose verdict opposes Side A's. */
+function chooseDis(q,fq,a){const want=OPP[a[2]]||"N",pool=DIS.filter(d=>d[2]===want);return choose(q,fq,pool.length?pool:DIS,"dis|")}
 const cents=(a,b)=>Math.abs(1200*Math.log2(a/b));
 
 const scope={f1:0,f2:0,amp:.15,mode:"idle",t:0};
@@ -198,24 +202,25 @@ function crackle(){try{const a=ac(),n=Math.floor(a.sampleRate*1.6),buf=a.createB
 /* ================= spin + reveal ================= */
 function spin(){
   const q=$("qin").value.trim();if(!q)return;
-  const fq=qHz(q);const [best,bd]=choose(q,fq);
+  const fq=qHz(q);const [a,ad]=choose(q,fq);const [d,dd]=chooseDis(q,fq,a);
+  pair={a,dis:d};lastQ=q;const best=petty?d:a,bd=petty?dd:ad;
   const fs=sHz(best);
   $("spin").disabled=true;$("random").disabled=true;
   setSpeed(45);setArm(19,true);scope.f1=fq;scope.mode="sweep";tone(fq,fs);
-  let i=0;const sweep=setInterval(()=>{const s=SONGS[i++%SONGS.length];scope.f2=sHz(s);readout(fmt(fq),"SCANNING",fmt(scope.f2),false)},180);
+  let i=0;const P=petty?DIS:SONGS;const sweep=setInterval(()=>{const s=P[i++%P.length];scope.f2=sHz(s);readout(fmt(fq),"SCANNING",fmt(scope.f2),false)},180);
   setTimeout(dropNeedle,950);
   setTimeout(()=>{clearInterval(sweep);scope.f2=fs;scope.mode="lock";readout(fmt(fq),"LOCKED · Δ "+Math.round(bd)+"¢",fmt(fs),true);
     setSpeed(33.333);reveal(q,best,bd);$("random").disabled=false},2400);
 }
-function reveal(q,s,bd){last=s;buzz.lock();const [t,a,v]=s,h=hash(t),c=cat.color,S=sideOf(ck),tr=SONGS.indexOf(s)+1;
+function reveal(q,s,bd){last=s;buzz.lock();const [t,a,v]=s,h=hash(t),c=cat.color,S=sideOf(ck),isDis=DIS.includes(s),tr=(isDis?DIS:SONGS).indexOf(s)+1;
   const ring=(x,y,r,al)=>`radial-gradient(circle at ${x}% ${y}%,transparent ${r}%,rgba(0,0,0,${al}) ${r}%,rgba(0,0,0,${al}) ${r+.35}%,transparent ${r+.35}%)`;
   const px=20+h%60,py=30+(h>>7)%50;
   const bg=[ring(px,py,22,.28),ring(px,py,30,.18),ring(px,py,38,.1),`radial-gradient(circle at ${px}% ${py}%,rgba(255,255,255,.18),transparent 45%)`,`linear-gradient(${150+h%40}deg,color-mix(in srgb,${c} 92%,#fff),color-mix(in srgb,${c} 62%,#000))`].join(",");
-  $("swrap").innerHTML=`<canvas class="peek" width="440" height="440"></canvas><div class="sleeve" style="--sbg:${bg}"><div class="stop"><span class="cat-no">ND-001 · ${S}${tr} · ${cat.name}</span></div><div><div class="stitle"></div><div class="sartist"></div></div></div>`;
+  $("swrap").innerHTML=`<canvas class="peek" width="440" height="440"></canvas><div class="sleeve" style="--sbg:${bg}"><div class="stop"><span class="cat-no">ND-001 · ${isDis?"DIS ":S}${tr} · ${cat.name}</span></div><div><div class="stitle"></div><div class="sartist"></div></div></div>`;
   const pk=$("swrap").querySelector(".peek"),pc=pk.getContext("2d");if(REC.disc){pc.drawImage(REC.base,0,0,440,440);pc.drawImage(REC.disc,0,0,440,440);pc.drawImage(REC.sheen,0,0,440,440)}
   
   $("swrap").querySelector(".stitle").textContent=t;$("swrap").querySelector(".sartist").textContent=a;
-  $("asked").textContent="“"+q+"”";$("reading").textContent=s[petty?4:3];
+  $("asked").textContent="“"+q+"”";$("reading").textContent=s[3];
   const term=encodeURIComponent(t+" "+a);
   $("links").innerHTML=`<a href="https://open.spotify.com/search/${term}" target="_blank" rel="noopener">Spotify ↗</a><a href="https://music.apple.com/us/search?term=${term}" target="_blank" rel="noopener">Apple Music ↗</a><a href="https://www.youtube.com/results?search_query=${term}" target="_blank" rel="noopener">YouTube ↗</a>`;
   show("ans");
